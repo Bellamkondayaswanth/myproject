@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
-import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
+import api from '../api';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const COLORS = ['#0a6e4f', '#2563eb', '#7c3aed', '#d97706', '#dc2626', '#16a34a'];
 
@@ -19,8 +16,8 @@ export default function Analytics() {
 
   const fetchData = useCallback(() => {
     Promise.all([
-      axios.get('http://localhost:5000/api/orders', { headers }),
-      axios.get('http://localhost:5000/api/medicines', { headers })
+      api.get('/api/orders', { headers }),
+      api.get('/api/medicines', { headers })
     ]).then(([ordersRes, medsRes]) => {
       setOrders(ordersRes.data);
       setMedicines(medsRes.data);
@@ -31,111 +28,57 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchData();
-    // Auto refresh every 30 seconds
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // ✅ Revenue only from confirmed + delivered orders
-  const confirmedOrders = orders.filter(o =>
-    o.status === 'confirmed' ||
-    o.status === 'delivered' ||
-    o.status === 'out for delivery'
-  );
-
-  // Revenue by day — only confirmed/delivered
+  const confirmedOrders = orders.filter(o => o.status === 'confirmed' || o.status === 'delivered' || o.status === 'out for delivery');
   const revenueByDay = () => {
     const map = {};
     confirmedOrders.forEach(o => {
-      const date = new Date(o.createdAt).toLocaleDateString('en-IN', {
-        day: '2-digit', month: 'short'
-      });
+      const date = new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
       map[date] = (map[date] || 0) + (o.totalAmount || 0);
     });
-    return Object.entries(map)
-      .map(([date, revenue]) => ({ date, revenue }))
-      .slice(-7);
+    return Object.entries(map).map(([date, revenue]) => ({ date, revenue })).slice(-7);
   };
-
-  // Orders by status — all orders
   const ordersByStatus = () => {
     const map = {};
-    orders.forEach(o => {
-      const status = o.status || 'pending';
-      map[status] = (map[status] || 0) + 1;
-    });
+    orders.forEach(o => { const status = o.status || 'pending'; map[status] = (map[status] || 0) + 1; });
     return Object.entries(map).map(([status, count]) => ({ status, count }));
   };
-
-  // Stock by category
   const stockByCategory = () => {
     const map = {};
-    medicines.forEach(m => {
-      const cat = m.category || 'Other';
-      map[cat] = (map[cat] || 0) + (m.stock || 0);
-    });
+    medicines.forEach(m => { const cat = m.category || 'Other'; map[cat] = (map[cat] || 0) + (m.stock || 0); });
     return Object.entries(map).map(([category, stock]) => ({ category, stock }));
   };
-
-  // Top selling medicines — from confirmed/delivered only
   const topMedicines = () => {
     const map = {};
-    confirmedOrders.forEach(o => {
-      (o.items || []).forEach(item => {
-        const name = item.name || 'Unknown';
-        map[name] = (map[name] || 0) + (item.quantity || 1);
-      });
-    });
-    return Object.entries(map)
-      .map(([name, sold]) => ({ name, sold }))
-      .sort((a, b) => b.sold - a.sold)
-      .slice(0, 5);
+    confirmedOrders.forEach(o => { (o.items || []).forEach(item => { const name = item.name || 'Unknown'; map[name] = (map[name] || 0) + (item.quantity || 1); }); });
+    return Object.entries(map).map(([name, sold]) => ({ name, sold })).sort((a, b) => b.sold - a.sold).slice(0, 5);
   };
 
-  // Summary numbers
   const totalRevenue = confirmedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const avgOrderValue = confirmedOrders.length
-    ? Math.round(totalRevenue / confirmedOrders.length) : 0;
+  const avgOrderValue = confirmedOrders.length ? Math.round(totalRevenue / confirmedOrders.length) : 0;
   const deliveredCount = orders.filter(o => o.status === 'delivered').length;
-  const deliveryRate = orders.length
-    ? Math.round((deliveredCount / orders.length) * 100) : 0;
-  const pendingRevenue = orders
-    .filter(o => o.status === 'pending')
-    .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const deliveryRate = orders.length ? Math.round((deliveredCount / orders.length) * 100) : 0;
+  const pendingRevenue = orders.filter(o => o.status === 'pending').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-  if (loading) return (
-    <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: 'var(--text-muted)', fontSize: '18px' }}>Loading analytics...</p>
-    </div>
-  );
+  if (loading) return <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-muted)', fontSize: '18px' }}>Loading analytics...</p></div>;
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', padding: '40px 2rem' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
           <div>
             <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: '2rem', marginBottom: 4 }}>📊 Analytics</h1>
-            <p style={{ color: 'var(--text-muted)' }}>
-              Live insights • Last updated: {lastUpdated} •
-              <span style={{ color: '#16a34a', fontWeight: 600 }}> Auto-refreshes every 30s</span>
-            </p>
+            <p style={{ color: 'var(--text-muted)' }}>Live insights • Last updated: {lastUpdated} • <span style={{ color: '#16a34a', fontWeight: 600 }}>Auto-refreshes every 30s</span></p>
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={fetchData} style={{
-              padding: '10px 20px', borderRadius: '12px',
-              border: '1px solid var(--primary)', background: 'white',
-              color: 'var(--primary)', fontWeight: 600, cursor: 'pointer'
-            }}>🔄 Refresh Now</button>
-            <Link to="/admin" style={{
-              background: 'var(--primary)', color: 'white',
-              padding: '10px 24px', borderRadius: '12px', fontWeight: 600
-            }}>← Dashboard</Link>
+            <button onClick={fetchData} style={{ padding: '10px 20px', borderRadius: '12px', border: '1px solid var(--primary)', background: 'white', color: 'var(--primary)', fontWeight: 600, cursor: 'pointer' }}>🔄 Refresh Now</button>
+            <Link to="/admin" style={{ background: 'var(--primary)', color: 'white', padding: '10px 24px', borderRadius: '12px', fontWeight: 600 }}>← Dashboard</Link>
           </div>
         </div>
 
-        {/* Summary Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: 32 }}>
           {[
             { icon: '💰', label: 'Confirmed Revenue', value: `₹${totalRevenue.toLocaleString()}`, color: '#0a6e4f', sub: 'From confirmed & delivered orders' },
@@ -143,10 +86,7 @@ export default function Analytics() {
             { icon: '📈', label: 'Avg Order Value', value: `₹${avgOrderValue}`, color: '#7c3aed', sub: 'Per confirmed order' },
             { icon: '🚀', label: 'Delivery Rate', value: `${deliveryRate}%`, color: '#2563eb', sub: `${deliveredCount} of ${orders.length} delivered` },
           ].map(s => (
-            <div key={s.label} style={{
-              background: 'white', borderRadius: '16px',
-              border: '1px solid var(--border)', padding: '24px'
-            }}>
+            <div key={s.label} style={{ background: 'white', borderRadius: '16px', border: '1px solid var(--border)', padding: '24px' }}>
               <div style={{ fontSize: '28px', marginBottom: 8 }}>{s.icon}</div>
               <div style={{ fontWeight: 700, fontSize: '22px', color: s.color, fontFamily: 'Fraunces, serif', marginBottom: 4 }}>{s.value}</div>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: 2 }}>{s.label}</div>
@@ -155,19 +95,11 @@ export default function Analytics() {
           ))}
         </div>
 
-        {/* Order Status Info Banner */}
-        <div style={{
-          background: '#e6f4ef', borderRadius: '12px', padding: '14px 20px',
-          marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12
-        }}>
+        <div style={{ background: '#e6f4ef', borderRadius: '12px', padding: '14px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: '20px' }}>ℹ️</span>
-          <p style={{ margin: 0, fontSize: '14px', color: '#0a6e4f', fontWeight: 500 }}>
-            Revenue charts count only <strong>Confirmed, Out for Delivery & Delivered</strong> orders.
-            Pending orders show separately. Charts update when you confirm orders in Manage Orders.
-          </p>
+          <p style={{ margin: 0, fontSize: '14px', color: '#0a6e4f', fontWeight: 500 }}>Revenue charts count only <strong>Confirmed, Out for Delivery & Delivered</strong> orders.</p>
         </div>
 
-        {/* Revenue Line Chart */}
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid var(--border)', padding: '24px', marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: '1.3rem' }}>Revenue Trend (Last 7 Days)</h2>
@@ -180,48 +112,31 @@ export default function Analytics() {
                 <XAxis dataKey="date" fontSize={12} />
                 <YAxis fontSize={12} />
                 <Tooltip formatter={(val) => [`₹${val}`, 'Revenue']} />
-                <Line
-                  type="monotone" dataKey="revenue"
-                  stroke="#0a6e4f" strokeWidth={3}
-                  dot={{ fill: '#0a6e4f', r: 5 }}
-                  activeDot={{ r: 8 }}
-                />
+                <Line type="monotone" dataKey="revenue" stroke="#0a6e4f" strokeWidth={3} dot={{ fill: '#0a6e4f', r: 5 }} activeDot={{ r: 8 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <div style={{ fontSize: '48px', marginBottom: 12 }}>📭</div>
-              <p style={{ color: 'var(--text-muted)' }}>No confirmed orders yet. Confirm orders to see revenue.</p>
+              <p style={{ color: 'var(--text-muted)' }}>No confirmed orders yet.</p>
               <Link to="/admin/orders" style={{ color: 'var(--primary)', fontWeight: 600 }}>Go to Manage Orders →</Link>
             </div>
           )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: 24 }}>
-
-          {/* Orders by Status Pie */}
           <div style={{ background: 'white', borderRadius: '16px', border: '1px solid var(--border)', padding: '24px' }}>
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: '1.3rem', marginBottom: 20 }}>Orders by Status</h2>
             {ordersByStatus().length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie
-                      data={ordersByStatus()}
-                      dataKey="count"
-                      nameKey="status"
-                      cx="50%" cy="50%"
-                      outerRadius={80}
-                      label={({ status, count }) => `${status}: ${count}`}
-                    >
-                      {ordersByStatus().map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
+                    <Pie data={ordersByStatus()} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={80} label={({ status, count }) => `${status}: ${count}`}>
+                      {ordersByStatus().map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
-                {/* Legend */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: 12 }}>
                   {ordersByStatus().map((item, i) => (
                     <div key={item.status} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px' }}>
@@ -231,12 +146,9 @@ export default function Analytics() {
                   ))}
                 </div>
               </>
-            ) : (
-              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No orders yet</p>
-            )}
+            ) : <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No orders yet</p>}
           </div>
 
-          {/* Top Medicines Bar */}
           <div style={{ background: 'white', borderRadius: '16px', border: '1px solid var(--border)', padding: '24px' }}>
             <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: '1.3rem', marginBottom: 4 }}>Top Selling Medicines</h2>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: 16 }}>From confirmed & delivered orders</p>
@@ -250,16 +162,10 @@ export default function Analytics() {
                   <Bar dataKey="sold" fill="#0a6e4f" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <p style={{ color: 'var(--text-muted)' }}>Confirm orders to see top medicines</p>
-              </div>
-            )}
+            ) : <div style={{ textAlign: 'center', padding: '40px 0' }}><p style={{ color: 'var(--text-muted)' }}>Confirm orders to see top medicines</p></div>}
           </div>
-
         </div>
 
-        {/* Stock by Category */}
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid var(--border)', padding: '24px' }}>
           <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: '1.3rem', marginBottom: 20 }}>Stock by Category</h2>
           {stockByCategory().length > 0 ? (
@@ -270,17 +176,12 @@ export default function Analytics() {
                 <YAxis fontSize={12} />
                 <Tooltip formatter={(val) => [val, 'Units in Stock']} />
                 <Bar dataKey="stock" radius={[6, 6, 0, 0]}>
-                  {stockByCategory().map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
+                  {stockByCategory().map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No stock data yet</p>
-          )}
+          ) : <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>No stock data yet</p>}
         </div>
-
       </div>
     </div>
   );

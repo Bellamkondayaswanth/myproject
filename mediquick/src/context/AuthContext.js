@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 const AuthContext = createContext();
 
@@ -12,25 +12,25 @@ export function AuthProvider({ children }) {
     const savedUser = localStorage.getItem('mq_user');
     if (token && savedUser) {
       setUser(JSON.parse(savedUser));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
-    const { data } = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+    const { data } = await api.post('/api/auth/login', { email, password });
     localStorage.setItem('mq_token', data.token);
     localStorage.setItem('mq_user', JSON.stringify(data.user));
-    axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+    api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
     setUser(data.user);
     return data.user;
   };
 
   const register = async (form) => {
-    const { data } = await axios.post('http://localhost:5000/api/auth/register', form);
+    const { data } = await api.post('/api/auth/register', form);
     localStorage.setItem('mq_token', data.token);
     localStorage.setItem('mq_user', JSON.stringify(data.user));
-    axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+    api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
     setUser(data.user);
     return data.user;
   };
@@ -38,7 +38,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem('mq_token');
     localStorage.removeItem('mq_user');
-    delete axios.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common['Authorization'];
     setUser(null);
   };
 

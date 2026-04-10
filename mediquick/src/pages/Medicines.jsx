@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { useCart } from '../context/CartContext';
 
 export default function Medicines() {
@@ -14,13 +14,11 @@ export default function Medicines() {
   const location = useLocation();
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/medicines')
+    api.get('/api/medicines')
       .then(res => {
         setMedicines(res.data);
         const cats = ['All', ...new Set(res.data.map(m => m.category).filter(Boolean))];
         setCategories(cats);
-
-        // Auto select category from URL
         const params = new URLSearchParams(location.search);
         const cat = params.get('category');
         if (cat) setActiveCategory(cat);
@@ -52,8 +50,6 @@ export default function Medicines() {
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', padding: '40px 2rem' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
           <div>
             <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: '2.2rem', marginBottom: 4 }}>
@@ -66,7 +62,6 @@ export default function Medicines() {
           </Link>
         </div>
 
-        {/* Search */}
         <div style={{ display: 'flex', background: 'white', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginBottom: 24 }}>
           <input
             placeholder="Search medicines or brands..."
@@ -77,7 +72,6 @@ export default function Medicines() {
           <div style={{ padding: '14px 20px', color: 'var(--text-muted)' }}>🔍</div>
         </div>
 
-        {/* Category Filter */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: 32 }}>
           {categories.map(cat => (
             <button key={cat} onClick={() => setActiveCategory(cat)} style={{
@@ -90,7 +84,6 @@ export default function Medicines() {
           ))}
         </div>
 
-        {/* Medicine Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
           {filtered.map(med => (
             <div key={med._id} style={{
@@ -99,7 +92,6 @@ export default function Medicines() {
             }}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(10,110,79,0.12)'; }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
-
               <div style={{ background: '#e8f5e9', height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '52px', position: 'relative' }}>
                 💊
                 {med.requiresPrescription && (
@@ -109,7 +101,6 @@ export default function Medicines() {
                   <span style={{ position: 'absolute', top: 10, right: 10, background: '#fee2e2', color: '#991b1b', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px' }}>Low Stock</span>
                 )}
               </div>
-
               <div style={{ padding: '16px' }}>
                 <div style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{med.category}</div>
                 <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: 2 }}>{med.name}</div>
@@ -145,7 +136,6 @@ export default function Medicines() {
             <p>Try a different search or category</p>
           </div>
         )}
-
       </div>
     </div>
   );
