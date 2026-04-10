@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -24,23 +24,19 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // Sending EVERY field the model requires
-      const res = await axios.post('http://localhost:5000/api/auth/register', {
+      const res = await api.post('/api/auth/register', {
         name: form.name,
         email: form.email,
         password: form.password,
         phone: form.phone
       });
 
-      // Save user info so Profile.jsx can show "Sai"
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
 
-      // Success redirect
       navigate('/profile');
       
     } catch (err) {
-      // This catches the 500 error and tells you WHY (e.g. Email already exists)
       setError(err.response?.data?.message || "Server Error. Check Backend Terminal.");
     } finally {
       setLoading(false);
